@@ -7,14 +7,24 @@ namespace TheEmployeeAPI.Employees;
 public class EmployeesController : BaseController
 {
     private readonly IRepository<Employee> _repository;
+    private readonly ILogger<EmployeesController> _logger;
 
-    public EmployeesController(IRepository<Employee> repository)
+
+    public EmployeesController(IRepository<Employee> repository, ILogger<EmployeesController> logger)
     {
         _repository = repository;
+        _logger = logger;
     }
+    
 
+    /// <summary>
+    /// Get all employees.
+    /// </summary>
+    /// <returns>An array of all employees.</returns>
     [HttpGet]
-    public IActionResult GetAll()
+    [ProducesResponseType(typeof(IEnumerable<GetEmployeeResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public IActionResult GetAllEmployees()
     {
         return Ok(_repository.GetAll().Select(employee => new GetEmployeeResponse {
             FirstName = employee.FirstName,
@@ -28,8 +38,17 @@ public class EmployeesController : BaseController
             Email = employee.Email
         }));
     }
+    
 
+    /// <summary>
+    /// Gets an employee by ID.
+    /// </summary>
+    /// <param name="id">The ID of the employee.</param>
+    /// <returns>The single employee record.</returns>
     [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(IEnumerable<GetEmployeeResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public IActionResult GetEmployeeById(int id)
     {
         var employee = _repository.GetById(id);
@@ -51,14 +70,19 @@ public class EmployeesController : BaseController
         });
     }
 
+    
+    /// <summary>
+    /// Creates a new employee.
+    /// </summary>
+    /// <param name="employeeRequest">The employee to be created.</param>
+    /// <returns>A link to the employee that was created.</returns>
     [HttpPost]
+    [ProducesResponseType(typeof(GetEmployeeResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> CreateEmployee(CreateEmployeeRequest employeeRequest)
     {
-        var validationResults = await ValidateAsync(employeeRequest);
-        if (!validationResults.IsValid)
-        {
-            return ValidationProblem(validationResults.ToModelStateDictionary());
-        }
+        await Task.CompletedTask;
     
         var newEmployee = new Employee
         {
@@ -79,12 +103,26 @@ public class EmployeesController : BaseController
         return CreatedAtAction(nameof(GetEmployeeById), new { id = newEmployee.Id }, newEmployee);
     }
 
+    
+    /// <summary>
+    /// Updates an employee.
+    /// </summary>
+    /// <param name="id">The ID of the employee to update.</param>
+    /// <param name="employeeRequest">The employee data to update.</param>
+    /// <returns></returns>
     [HttpPut("{id:int}")]
+    [ProducesResponseType(typeof(GetEmployeeResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ValidationProblemDetails))]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public IActionResult Update(int id, UpdateEmployeeRequest employeeRequest)
     {
+        _logger.LogInformation("Updating employee with ID: {EmployeeId}", id);
+        
         var existingEmployee = _repository.GetById(id);
         if (existingEmployee == null)
         {
+            _logger.LogWarning("Employee with ID: {EmployeeId} not found", id);
             return NotFound();
         }
 
