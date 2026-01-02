@@ -1,5 +1,6 @@
 using TheEmployeeAPI.Abstractions;
 using FluentValidation;
+using Microsoft.EntityFrameworkCore;
 using TheEmployeeApi;
 using TheEmployeeAPI;
 
@@ -26,8 +27,17 @@ builder.Services.AddControllers(options =>
 {
     options.Filters.Add<FluentValidationFilter>();
 });
+builder.Services.AddDbContext<AppDbContext>(options =>
+{
+    options.UseSqlite("Data Source=employees.db");
+});
 
 var app = builder.Build();
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    SeedData.Seed(services);
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
