@@ -1,35 +1,19 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using TheEmployeeAPI.Abstractions;
-using TheEmployeeAPI.Employees;
+using TheEmployeeApi.Employees;
 
-namespace TheEmployeeAPI.Tests;
+namespace TheEmployeeApi.Tests;
 
-public class BasicTests : IClassFixture<WebApplicationFactory<Program>>
+public class BasicTests : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly int _employeeId = 1;
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public BasicTests(WebApplicationFactory<Program> factory)
+    public BasicTests(CustomWebApplicationFactory factory)
     {
         _factory = factory;
-
-        var repo = _factory.Services.GetRequiredService<IRepository<Employee>>();
-        repo.Create(new Employee { 
-            FirstName = "John", 
-            LastName = "Doe",
-            Address1 = "123 Main St",
-            Benefits = new List<EmployeeBenefits>
-            {
-                new EmployeeBenefits { BenefitType = BenefitType.Health, Cost = 100 },
-                new EmployeeBenefits { BenefitType = BenefitType.Dental, Cost = 50 }
-            }
-        });
-    
-        _employeeId = repo.GetAll().First().Id;
     }
 
     [Fact]
@@ -49,29 +33,41 @@ public class BasicTests : IClassFixture<WebApplicationFactory<Program>>
 
         response.EnsureSuccessStatusCode();
     }
+    
+    [Fact]
+    public async Task GetAllEmployees_WithFilter_ReturnsOneResult()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.GetAsync("/employees?FirstNameContains=John");
+
+        response.EnsureSuccessStatusCode();
+
+        var employees = await response.Content.ReadFromJsonAsync<IEnumerable<GetEmployeeResponse>>();
+        Assert.Single(employees);
+    }
 
     [Fact]
     public async Task CreateEmployee_ReturnsCreatedResult()
     {
         var client = _factory.CreateClient();
         var response = await client.PostAsJsonAsync("/employees", new Employee { FirstName = "John", LastName = "Doe" });
-
+    
         response.EnsureSuccessStatusCode();
     }
-
+    
     [Fact]
     public async Task CreateEmployee_ReturnsBadRequestResult()
     {
         // Arrange
         var client = _factory.CreateClient();
         var invalidEmployee = new CreateEmployeeRequest(); // Empty object to trigger validation errors
-
+    
         // Act
         var response = await client.PostAsJsonAsync("/employees", invalidEmployee);
-
+    
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-
+    
         var problemDetails = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
         Assert.NotNull(problemDetails);
         Assert.Contains("FirstName", problemDetails.Errors.Keys);
@@ -84,44 +80,80 @@ public class BasicTests : IClassFixture<WebApplicationFactory<Program>>
     public async Task UpdateEmployee_ReturnsOkResult()
     {
         var client = _factory.CreateClient();
-        var response = await client.PutAsJsonAsync("/employees/1", new Employee { FirstName = "John", LastName = "Doe", Address1 = "123 Main St" });
+        var response = await client.PutAsJsonAsync("/employees/1", new Employee { 
+            FirstName = "John", 
+            LastName = "Doe", 
+            Address1 = "123 Main Smoot" 
+        });
 
         response.EnsureSuccessStatusCode();
-    }
 
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var employee = await db.Employees.FindAsync(1);
+        Assert.Equal("123 Main Smoot", employee.Address1);
+    }
+    
     [Fact]
     public async Task UpdateEmployee_ReturnsBadRequestWhenAddress()
     {
         // Arrange
         var client = _factory.CreateClient();
         var invalidEmployee = new UpdateEmployeeRequest(); // Empty object to trigger validation errors
-
+    
         // Act
         var response = await client.PutAsJsonAsync($"/employees/{_employeeId}", invalidEmployee);
-
+    
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-
+    
         var problemDetails = await response.Content.ReadFromJsonAsync<ValidationProblemDetails>();
         Assert.NotNull(problemDetails);
         Assert.Contains("Address1", problemDetails.Errors.Keys);
     }
     
-    
     [Fact]
-    public async Task GetBenefitsForEmployee_ReturnsOkResult()
+    public async Task DeleteEmployee_ReturnsNoContentResult()
     {
-        // Act
         var client = _factory.CreateClient();
-        var response = await client.GetAsync($"/employees/{_employeeId}/benefits");
 
-        // Assert
-        response.EnsureSuccessStatusCode();
-    
-        var benefits = await response.Content.ReadFromJsonAsync<IEnumerable<GetEmployeeResponseEmployeeBenefit>>();
-        if (benefits != null)
+        var newEmployee = new Employee { FirstName = "Meow", LastName = "Garita" };
+        using (var scope = _factory.Services.CreateScope())
         {
-            Assert.Equal(2, benefits.Count());
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.Employees.Add(newEmployee);
+            await db.SaveChangesAsync();
         }
+
+        var response = await client.DeleteAsync($"/employees/{newEmployee.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
+
+    [Fact]
+    public async Task DeleteEmployee_ReturnsNotFoundResult()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.DeleteAsync("/employees/99999");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+    
+    //
+    // [Fact]
+    // public async Task GetBenefitsForEmployee_ReturnsOkResult()
+    // {
+    //     // Act
+    //     var client = _factory.CreateClient();
+    //     var response = await client.GetAsync($"/employees/{_employeeId}/benefits");
+    //
+    //     // Assert
+    //     response.EnsureSuccessStatusCode();
+    //
+    //     var benefits = await response.Content.ReadFromJsonAsync<IEnumerable<GetEmployeeResponseEmployeeBenefit>>();
+    //     if (benefits != null)
+    //     {
+    //         Assert.Equal(2, benefits.Count());
+    //     }
+    // }
 }

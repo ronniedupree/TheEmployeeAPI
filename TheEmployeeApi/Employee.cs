@@ -1,4 +1,4 @@
-﻿namespace TheEmployeeAPI;
+﻿namespace TheEmployeeApi;
 
 public class Employee 
 {

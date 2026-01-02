@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using ValidationResult = FluentValidation.Results.ValidationResult;
 
-namespace TheEmployeeAPI;
+namespace TheEmployeeApi;
 
 public static class Extensions
 {

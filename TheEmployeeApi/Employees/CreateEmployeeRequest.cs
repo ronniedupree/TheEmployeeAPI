@@ -1,7 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
-using FluentValidation;
+﻿using FluentValidation;
 
-namespace TheEmployeeAPI.Employees;
+namespace TheEmployeeApi.Employees;
 
 public class CreateEmployeeRequest
 {

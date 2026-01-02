@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using TheEmployeeAPI;
 
 namespace TheEmployeeApi;
 
@@ -11,5 +10,9 @@ public class AppDbContext : DbContext
     }
     
     public DbSet<Employee> Employees { get; set; }
-    
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        
+    }
 }

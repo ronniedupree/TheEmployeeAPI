@@ -2,7 +2,7 @@
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
 
-namespace TheEmployeeAPI;
+namespace TheEmployeeApi;
 
 [ApiController]
 [Route("[controller]")]

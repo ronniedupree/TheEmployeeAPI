@@ -1,4 +1,6 @@
-﻿namespace TheEmployeeAPI.Employees;
+﻿using TheEmployeeApi;
+
+namespace TheEmployeeApi.Employees;
 
 public class GetEmployeeResponse
 {
